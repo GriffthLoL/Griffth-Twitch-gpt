@@ -1,31 +1,39 @@
-{
-  "name": "Twitch Chat GPT",
-  "version": "1.1.0",
-  "description": "The Twitch Chat GPT is a bot that uses OpenAI's GPT-3.5 to generate messages based on the chat of a Twitch channel. It can be used to generate messages for a chatbot, or to generate, for example, a chatbot for a game.",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "start": "node index.js"
+const tmi = require('tmi.js');
+const { Configuration, OpenAIApi } = require('openai');
+require('dotenv').config(); // Carrega as variáveis de ambiente do arquivo .env
+
+const openai = new OpenAIApi(new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+}));
+
+const client = new tmi.Client({
+  options: { debug: true },
+  connection: {
+    reconnect: true,
+    secure: true
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pedrojlazevedo/twitch-chatgpt.git"
+  identity: {
+    username: 'seu_usuario',
+    password: process.env.TWITCH_AUTH_TOKEN
   },
-  "author": "Pedro Azevedo",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/pedrojlazevedo/twitch-chatgpt/issues"
-  },
-  "homepage": "https://github.com/pedrojlazevedo/twitch-chatgpt#readme",
-  "dependencies": {
-    "cron": "^3.1.1",
-    "ejs": "^3.1.9",
-    "express": "^4.18.2",
-    "express-ws": "^5.0.2",
-    "openai": "^4.20.1",
-    "promisify": "^0.0.3",
-    "request": "^2.88.2",
-    "tmi.js": "^1.8.5",
-    "ws": "^8.14.2"
+  channels: ['seu_canal']
+});
+
+client.connect();
+
+client.on('message', async (channel, user, message, self) => {
+  if (message.startsWith('!gpt')) {
+    const prompt = message.slice(4).trim();
+    try {
+      const response = await openai.createCompletion({
+        model: 'text-davinci-003',
+        prompt: prompt,
+        max_tokens: 150
+      });
+      client.say(channel, response.data.choices[0].text.trim());
+    } catch (error) {
+      console.error(error);
+      client.say(channel, 'Desculpe, algo deu errado com a API GPT.');
+    }
   }
-}
+});
